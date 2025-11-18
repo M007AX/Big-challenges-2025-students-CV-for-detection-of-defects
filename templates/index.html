@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>YOLO Person Detection - Выбор камеры</title>
+    <style>
+        /* Ваш CSS из предыдущего варианта + */
+        .controls {
+            margin-bottom: 20px;
+        }
+        select, button {
+            padding: 8px 12px;
+            font-size: 1em;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="controls">
+    <label for="cameraSelect">Выберите камеру:</label>
+    <select id="cameraSelect"></select>
+    <button onclick="changeCamera()">Выбрать</button>
+</div>
+
+<div class="video-container">
+    <img id="videoStream" src="/video_feed" alt="Видеопоток">
+</div>
+
+<script>
+async function loadCameras() {
+    const res = await fetch('/api/cameras');
+    const cameras = await res.json();
+    const select = document.getElementById('cameraSelect');
+    select.innerHTML = '';
+    cameras.forEach(cam => {
+        const option = document.createElement('option');
+        option.value = cam.id;
+        option.textContent = cam.name;
+        select.appendChild(option);
+    });
+}
+
+async function changeCamera() {
+    const select = document.getElementById('cameraSelect');
+    const cameraId = parseInt(select.value);
+    await fetch('/api/select_camera', {
+        method: "POST",
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({camera_id: cameraId})
+    });
+    // Обновляем видеопоток
+    const videoStream = document.getElementById('videoStream');
+    videoStream.src = '/video_feed?time=' + new Date().getTime();
+}
+
+window.onload = loadCameras;
+</script>
+</body>
+</html>
