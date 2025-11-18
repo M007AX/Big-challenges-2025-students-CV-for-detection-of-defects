@@ -1,59 +1,70 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8" />
-    <title>YOLO Person Detection - Выбор камеры</title>
-    <style>
-        /* Ваш CSS из предыдущего варианта + */
-        .controls {
-            margin-bottom: 20px;
-        }
-        select, button {
-            padding: 8px 12px;
-            font-size: 1em;
-            margin-right: 10px;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <title>YOLO Detection</title>
 </head>
 <body>
-<div class="controls">
-    <label for="cameraSelect">Выберите камеру:</label>
-    <select id="cameraSelect"></select>
-    <button onclick="changeCamera()">Выбрать</button>
-</div>
+    <h1>YOLO Person Detection</h1>
 
-<div class="video-container">
-    <img id="videoStream" src="/video_feed" alt="Видеопоток">
-</div>
+    <div>
+        <label>Камера:</label>
+        <select id="cameraSelect"></select>
+        <button onclick="changeCamera()">Выбрать</button>
+    </div>
 
-<script>
-async function loadCameras() {
-    const res = await fetch('/api/cameras');
-    const cameras = await res.json();
-    const select = document.getElementById('cameraSelect');
-    select.innerHTML = '';
-    cameras.forEach(cam => {
-        const option = document.createElement('option');
-        option.value = cam.id;
-        option.textContent = cam.name;
-        select.appendChild(option);
-    });
-}
+    <div>
+        <img id="videoStream" src="/api/video/feed" width="640" height="480">
+    </div>
 
-async function changeCamera() {
-    const select = document.getElementById('cameraSelect');
-    const cameraId = parseInt(select.value);
-    await fetch('/api/select_camera', {
-        method: "POST",
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({camera_id: cameraId})
-    });
-    // Обновляем видеопоток
-    const videoStream = document.getElementById('videoStream');
-    videoStream.src = '/video_feed?time=' + new Date().getTime();
-}
+    <div>
+        <h2>Отправить координаты смещения</h2>
+        <input type="number" id="coordX" placeholder="X">
+        <input type="number" id="coordY" placeholder="Y">
+        <button onclick="sendCoordinates()">Отправить</button>
+    </div>
 
-window.onload = loadCameras;
-</script>
+    <p id="status"></p>
+
+    <script>
+        async function loadCameras() {
+            const res = await fetch('/api/video/cameras');
+            const cameras = await res.json();
+            const select = document.getElementById('cameraSelect');
+            cameras.forEach(cam => {
+                const option = document.createElement('option');
+                option.value = cam.id;
+                option.textContent = cam.name;
+                select.appendChild(option);
+            });
+        }
+
+        async function changeCamera() {
+            const cameraId = parseInt(document.getElementById('cameraSelect').value);
+            await fetch(`/api/video/select_camera/${cameraId}`, {method: 'POST'});
+        }
+
+        async function sendCoordinates() {
+            const x = document.getElementById('coordX').value;
+            const y = document.getElementById('coordY').value;
+
+            if (!x || !y) {
+                document.getElementById('status').textContent = 'Введите X и Y';
+                return;
+            }
+
+            const res = await fetch('/api/coords/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({x: parseInt(x), y: parseInt(y)})
+            });
+
+            const data = await res.json();
+            document.getElementById('status').textContent =
+                `Исходные: X=${data.original.x}, Y=${data.original.y}. Смещение: X=${data.modified.x}, Y=${data.modified.y}`;
+        }
+
+        window.onload = loadCameras;
+    </script>
 </body>
 </html>
