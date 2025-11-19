@@ -9,10 +9,12 @@ from datetime import datetime, timezone
 
 video_bp = Blueprint('video', __name__)
 
+# Проверяем доступность GPU
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f"🖥️  Используемое устройство: {device}")
 if device == 'cuda':
     print(f"📊 GPU: {torch.cuda.get_device_name(0)}")
+    print(f"📈 CUDA версия: {torch.version.cuda}")
 
 model = YOLO('yolov8n.pt').to(device)
 
@@ -90,38 +92,43 @@ def send_coordinates(persons, camera_num):
     """Отправка координат на сервер раз в секунду"""
     current_time = time.time()
 
-    # Проверяем, прошла ли секунда с последней отправки
     if camera_num in last_send_time:
-        if current_time - last_send_time[camera_num] < 1.0:
+        if current_time - last_send_time[camera_num] < 10:
             return
 
     last_send_time[camera_num] = current_time
 
-    if not persons:
-        return
-
-    # Берем первого обнаруженного человека
-    person = persons[0]
-
-    # Время в UTC+0
+    # НОВОЕ: отправляем данные даже если людей нет
     utc_time = datetime.now(timezone.utc).isoformat()
 
-    data = {
-        'camera_id': camera_num,
-        'x': person['x'],
-        'y': person['y'],
-        'confidence': person['confidence'],
-        'timestamp': utc_time
-    }
+    if persons:  # Человек(и) найдены
+        person = persons[0]
+        data = {
+            'camera_id': camera_num,
+            'x': person['x'],
+            'y': person['y'],
+            'confidence': person['confidence'],
+            'has_person': True,  # ← НОВОЕ
+            'timestamp': utc_time
+        }
+        print(f"✓ Камера {camera_num}: Найден человек X={person['x']}, Y={person['y']}")
+    else:  # Людей не найдено
+        data = {
+            'camera_id': camera_num,
+            'x': 320,  # Центр
+            'y': 240,  # Центр
+            'confidence': 0,
+            'has_person': False,  # ← НОВОЕ
+            'timestamp': utc_time
+        }
+        print(f"⚠️  Камера {camera_num}: Человек не найден")
 
     try:
         response = requests.post(SERVER_URL, json=data, timeout=2)
-        if response.status_code == 200:
-            print(f"✓ Данные отправлены с камеры {camera_num}: X={person['x']}, Y={person['y']}, Time={utc_time}")
-        else:
+        if response.status_code != 200:
             print(f"✗ Ошибка отправки: {response.status_code}")
     except Exception as e:
-        print(f"✗ Ошибка подключения к серверу: {e}")
+        print(f"✗ Ошибка подключения: {e}")
 
 
 def process_frame(frame, camera_num):
