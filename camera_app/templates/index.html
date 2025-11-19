@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>YOLO Detection - 2 камеры</title>
+</head>
+<body>
+    <h1>YOLO Person Detection - Две камеры</h1>
+    <p>Координаты автоматически отправляются на сервер раз в секунду</p>
+
+    <div>
+        <h2>Камера 1</h2>
+        <label>Выбрать:</label>
+        <select id="cameraSelect1">
+            <option value="">Загрузка...</option>
+        </select>
+        <button onclick="changeCamera(1)">Применить</button>
+        <br>
+        <img id="videoStream1" src="/api/video/feed1" width="640" height="480">
+    </div>
+
+    <div>
+        <h2>Камера 2</h2>
+        <label>Выбрать:</label>
+        <select id="cameraSelect2">
+            <option value="">Загрузка...</option>
+        </select>
+        <button onclick="changeCamera(2)">Применить</button>
+        <br>
+        <img id="videoStream2" src="/api/video/feed2" width="640" height="480">
+    </div>
+
+    <script>
+        async function loadCameras() {
+            try {
+                const res = await fetch('/api/video/cameras');
+                const cameras = await res.json();
+
+                const select1 = document.getElementById('cameraSelect1');
+                const select2 = document.getElementById('cameraSelect2');
+
+                select1.innerHTML = '';
+                select2.innerHTML = '';
+
+                cameras.forEach(cam => {
+                    const option1 = document.createElement('option');
+                    option1.value = cam.id;
+                    option1.textContent = cam.name;
+                    select1.appendChild(option1);
+
+                    const option2 = document.createElement('option');
+                    option2.value = cam.id;
+                    option2.textContent = cam.name;
+                    select2.appendChild(option2);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки камер:', error);
+            }
+        }
+
+        async function changeCamera(cameraNum) {
+            const selectId = `cameraSelect${cameraNum}`;
+            const cameraId = document.getElementById(selectId).value;
+
+            if (!cameraId) {
+                alert('Выберите камеру');
+                return;
+            }
+
+            try {
+                await fetch(`/api/video/select_camera/${cameraNum}/${cameraId}`, {
+                    method: 'POST'
+                });
+
+                const videoStreamId = `videoStream${cameraNum}`;
+                document.getElementById(videoStreamId).src =
+                    `/api/video/feed${cameraNum}?time=${Date.now()}`;
+            } catch (error) {
+                console.error('Ошибка смены камеры:', error);
+            }
+        }
+
+        window.onload = loadCameras;
+    </script>
+</body>
+</html>

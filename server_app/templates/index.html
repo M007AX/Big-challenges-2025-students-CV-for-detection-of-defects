@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Server - Координаты</title>
+</head>
+<body>
+    <h1>Сервер координат (Порт 5001)</h1>
+
+    <h2>Последние координаты:</h2>
+    <pre id="latest"></pre>
+
+    <h2>Статистика:</h2>
+    <pre id="stats"></pre>
+
+    <button onclick="loadData()">Обновить</button>
+    <button onclick="clearCamera(1)">Очистить Камеру 1</button>
+    <button onclick="clearCamera(2)">Очистить Камеру 2</button>
+
+    <script>
+        async function loadData() {
+            try {
+                const latest = await fetch('/api/coordinates/get_latest').then(r => r.json());
+                const stats = await fetch('/api/coordinates/stats').then(r => r.json());
+
+                document.getElementById('latest').textContent = JSON.stringify(latest, null, 2);
+                document.getElementById('stats').textContent = JSON.stringify(stats, null, 2);
+            } catch (error) {
+                console.error('Ошибка загрузки:', error);
+            }
+        }
+
+        async function clearCamera(cameraId) {
+            try {
+                await fetch(`/api/coordinates/clear/${cameraId}`, {method: 'POST'});
+                loadData();
+            } catch (error) {
+                console.error('Ошибка очистки:', error);
+            }
+        }
+
+        window.onload = () => {
+            loadData();
+            setInterval(loadData, 2000);  // Обновляем каждые 2 секунды
+        };
+    </script>
+</body>
+</html>
