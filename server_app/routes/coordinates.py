@@ -15,7 +15,7 @@ coordinates_storage = {
 storage_lock = threading.Lock()
 MAX_RECORDS = 1000
 
-ser = serial.Serial('COM3', 115200, timeout=1)
+ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
 time.sleep(2)
 # Пример отправки данных
 data_to_send1 = "7,90,100"
