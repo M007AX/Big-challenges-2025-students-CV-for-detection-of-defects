@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import threading
 import serial
 import time
+from server_app.routes.arduino import rotation
 
 coord_bp = Blueprint('coordinates', __name__)
 
@@ -14,44 +15,15 @@ coordinates_storage = {
 storage_lock = threading.Lock()
 MAX_RECORDS = 1000
 
-# Глобальная переменная для Serial соединения
-serial_conn = None
-serial_lock = threading.Lock()
-
-
-def init_serial():
-    """Инициализация серийного соединения с Arduino"""
-    global serial_conn
-    try:
-        serial_conn = serial.Serial('COM3', 115200, timeout=1)
-        time.sleep(2)
-        print("✓ Arduino подключена на COM3")
-        return True
-    except Exception as e:
-        print(f"✗ Ошибка подключения Arduino: {e}")
-        serial_conn = None
-        return False
-
-
-def send_arduino_command(command):
-    """Отправить команду на Arduino"""
-    global serial_conn
-
-    if serial_conn is None or not serial_conn.is_open:
-        print("✗ Arduino не подключена")
-        return False
-
-    try:
-        with serial_lock:
-            serial_conn.write(command.encode())
-            print(f"📤 Отправлено на Arduino: {command}")
-            return True
-    except Exception as e:
-        print(f"✗ Ошибка отправки: {e}")
-        return False
-
 ser = serial.Serial('COM3', 115200, timeout=1)
-time.sleep(2)  # Даем время на установление соединения
+time.sleep(2)
+# Пример отправки данных
+data_to_send1 = "7,90,100"
+data_to_send2 = "7,-90,100"
+
+
+
+
 @coord_bp.route('/receive', methods=['POST'])
 def receive_coordinates():
     """Получение координат с камеры"""
@@ -87,19 +59,7 @@ def receive_coordinates():
     # ====== ГЛАВНАЯ ЛОГИКА ======
     # Если человек ЕСТЬ в кадре - начинаем отслеживание
     if has_person:
-
-
-
-
-        data_to_send1 = "7,90,100"
-
-        ser.write(data_to_send1.encode())
-        print(f"Отправлено: {data_to_send1}")
-
-        data_to_send2 = "7,-90,100"
-
-        ser.write(data_to_send2.encode())
-        print(f"Отправлено: {data_to_send2}")
+        rotation(ser, data_to_send1, data_to_send2)
 
     return jsonify({'status': 'ok', 'has_person': has_person})
 
@@ -160,6 +120,3 @@ def get_stats():
 
     return jsonify(stats)
 
-
-# Инициализация при запуске
-init_serial()

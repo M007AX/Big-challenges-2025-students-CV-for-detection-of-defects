@@ -89,11 +89,10 @@ def detect_persons(frame):
 
 
 def send_coordinates(persons, camera_num):
-    """Отправка координат на сервер раз в секунду"""
     current_time = time.time()
 
     if camera_num in last_send_time:
-        if current_time - last_send_time[camera_num] < 10:
+        if current_time - last_send_time[camera_num] < 1: # частота отправки сигнала
             return
 
     last_send_time[camera_num] = current_time
