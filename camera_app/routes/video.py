@@ -28,7 +28,7 @@ else:
 
 print(f"🎥  ОС: {OS_NAME}, backend камеры: {CAMERA_BACKEND}")
 
-model = YOLO('/home/sirius/PycharmProjects/Big-challenges-2025-students-CV-for-detection-of-defects1/best.pt').to(device)
+model = YOLO('/home/sirius/PycharmProjects/Big-challenges-2025-students-CV-for-detection-of-defects1/brak_ok_gaus.pt').to(device)
 
 cap1 = None
 cap2 = None
@@ -101,10 +101,14 @@ def detect_persons(frame):
 
     try:
         results = model(frame, conf=0.5, verbose=False, device=device)
+        class_thresholds = {
+            0: 0.9,
+            1: 0.75
+        }
 
         for result in results:
             for box in result.boxes:
-                if int(box.cls) == 0:  # person
+                if (int(box.cls) == 0 and float(box.conf[0]) >= 0.9) or ((int(box.cls) == 1 and float(box.conf[1]) >= 0.75)):  # person
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     conf = float(box.conf[0])
 
@@ -129,7 +133,7 @@ def send_coordinates(persons, camera_num):
 
     if camera_num in last_send_time:
         # Раз в 10 секунд, как у тебя в исходнике
-        if current_time - last_send_time[camera_num] < 5:
+        if current_time - last_send_time[camera_num] < 0.02:
             return
 
     last_send_time[camera_num] = current_time
@@ -160,9 +164,10 @@ def send_coordinates(persons, camera_num):
         print(f"⚠️  Камера {camera_num}: cup не найден")
 
     try:
-        response = requests.post(SERVER_URL, json=data, timeout=2)
-        if response.status_code != 200:
-            print(f"✗ Ошибка отправки: {response.status_code}")
+        if persons and 1060 > persons[0]['x'] > 860:
+            response = requests.post(SERVER_URL, json=data, timeout=2)
+            if response.status_code != 200:
+                print(f"✗ Ошибка отправки: {response.status_code}")
     except Exception as e:
         print(f"✗ Ошибка подключения: {e}")
 
@@ -171,13 +176,13 @@ def process_frame(frame, camera_num):
     """Обработка кадра: детекция, отправка координат, рисование боксов"""
     frame_copy = frame.copy()
 
-    persons = detect_persons(frame)
+    cups = detect_persons(frame)
 
     # Отправляем координаты на сервер
-    send_coordinates(persons, camera_num)
+    send_coordinates(cups, camera_num)
 
     # Рисуем боксы вокруг людей
-    if persons:
+    if cups:
         try:
             results = model(frame, conf=0.5, verbose=False, device=device)
             for result in results:
@@ -186,11 +191,20 @@ def process_frame(frame, camera_num):
                         x1, y1, x2, y2 = map(int, box.xyxy[0])
                         conf = float(box.conf[0])
                         cv2.rectangle(frame_copy, (x1, y1), (x2, y2),
-                                      (0, 255, 0), 2)
-                        cv2.putText(frame_copy, f'Cup: {conf:.2f}',
+                                      (0, 0, 255), 2)
+                        cv2.putText(frame_copy, f'Cup brak: {conf:.2f}',
                                     (x1, y1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.6, (0, 255, 0), 2)
+                                    1, (0, 0, 255), 2)
+                    if int(box.cls) == 1:
+                        x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        conf = float(box.conf[0])
+                        cv2.rectangle(frame_copy, (x1, y1), (x2, y2),
+                                      (0, 255, 0), 2)
+                        cv2.putText(frame_copy, f'Cup ok: {conf:.2f}',
+                                    (x1, y1 - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX,
+                                    1, (0, 255, 0), 2)
         except Exception as e:
             print(f"✗ Ошибка при отрисовке боксов: {e}")
 
