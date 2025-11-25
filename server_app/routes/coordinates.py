@@ -5,8 +5,6 @@ import serial
 import time
 import queue
 
-from server_app.routes.arduino import rotation
-
 coord_bp = Blueprint('coordinates', __name__)
 
 coordinates_storage = {
@@ -27,7 +25,7 @@ data_to_send2 = "7,170,100"
 data_to_send1 = "7,120,100"
 
 
-ser.write(data_to_send2.encode())
+#ser.write(data_to_send2.encode())
 
 
 
@@ -46,7 +44,13 @@ def rotation_worker():
             # Здесь можно использовать параметры из task при необходимости
             # например, task['camera_id'], task['x'], task['y'], ...
             time.sleep(2)
-            rotation(ser, data_to_send1, data_to_send2)
+
+            #rotation(ser, data_to_send1, data_to_send2)
+            try:
+                ser.write("brak".encode())
+            except serial.SerialException as e:
+                print(f"Ошибка при подключении к порту: {e}")
+
             while not rotation_queue.empty():
                 rotation_queue.get()
         except Exception as e:

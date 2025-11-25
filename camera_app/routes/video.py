@@ -7,6 +7,7 @@ import time
 import requests
 from datetime import datetime, timezone
 import platform
+import os
 
 video_bp = Blueprint('video', __name__)
 
@@ -28,7 +29,7 @@ else:
 
 print(f"🎥  ОС: {OS_NAME}, backend камеры: {CAMERA_BACKEND}")
 
-model = YOLO('/home/sirius/PycharmProjects/Big-challenges-2025-students-CV-for-detection-of-defects1/brak_ok_gaus.pt').to(device)
+model = YOLO('/home/sirius/PycharmProjects/Big-challenges-2025-students-CV-for-detection-of-defects1/brak_ok_no_gaus.pt').to(device)
 
 cap1 = None
 cap2 = None
@@ -69,8 +70,8 @@ def init_camera(camera_id, camera_num):
                 cap1 = None
                 return
 
-            cap1.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-            cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+            cap1.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
+            cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, 540)
             last_send_time[1] = 0
             print(f"✓ Камера 1 инициализирована: ID {camera_id}")
 
@@ -86,8 +87,8 @@ def init_camera(camera_id, camera_num):
                 cap2 = None
                 return
 
-            cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-            cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+            cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 960)
+            cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 540)
             last_send_time[2] = 0
             print(f"✓ Камера 2 инициализирована: ID {camera_id}")
 
@@ -108,7 +109,7 @@ def detect_persons(frame):
 
         for result in results:
             for box in result.boxes:
-                if (int(box.cls) == 0 and float(box.conf[0]) >= 0.9) or ((int(box.cls) == 1 and float(box.conf[1]) >= 0.75)):  # person
+                if int(box.cls) == 0 and float(box.conf[0]) >= 0.9 or (int(box.cls) == 1):  # person
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     conf = float(box.conf[0])
 
@@ -119,7 +120,7 @@ def detect_persons(frame):
                     persons.append({
                         'x': center_x,
                         'y': center_y,
-                        'confidence': conf
+                        'confidence': int(box.cls)
                     })
     except Exception as e:
         print(f"✗ Ошибка детекции: {e}")
@@ -141,7 +142,7 @@ def send_coordinates(persons, camera_num):
     # Отправляем данные даже если людей нет
     utc_time = datetime.now(timezone.utc).isoformat()
 
-    if persons:  # Человек(и) найдены
+    if persons and persons[0]['confidence'] == 0:  # Человек(и) найдены
         person = persons[0]
         data = {
             'camera_id': camera_num,
@@ -164,7 +165,7 @@ def send_coordinates(persons, camera_num):
         print(f"⚠️  Камера {camera_num}: cup не найден")
 
     try:
-        if persons and 1060 > persons[0]['x'] > 860:
+        if persons and 520 > persons[0]['x'] > 400:
             response = requests.post(SERVER_URL, json=data, timeout=2)
             if response.status_code != 200:
                 print(f"✗ Ошибка отправки: {response.status_code}")
@@ -192,7 +193,7 @@ def process_frame(frame, camera_num):
                         conf = float(box.conf[0])
                         cv2.rectangle(frame_copy, (x1, y1), (x2, y2),
                                       (0, 0, 255), 2)
-                        cv2.putText(frame_copy, f'Cup brak: {conf:.2f}',
+                        cv2.putText(frame_copy, f'Cup break: {conf:.2f}',
                                     (x1, y1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX,
                                     1, (0, 0, 255), 2)
@@ -207,7 +208,9 @@ def process_frame(frame, camera_num):
                                     1, (0, 255, 0), 2)
         except Exception as e:
             print(f"✗ Ошибка при отрисовке боксов: {e}")
-
+    #os.makedirs('saved_frames', exist_ok=True)
+    #filename = f'saved_frames/frame_cam1_{datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.jpg'
+    #cv2.imwrite(filename, frame)
     return frame_copy
 
 
@@ -222,12 +225,15 @@ def update_frames_camera1():
 
         current_time = time.time()
         if current_time - last_time < FRAME_TIME:
-            time.sleep(0.001)
+            time.sleep(0.02)
             continue
 
         last_time = current_time
 
         ret, frame = cap1.read()
+        #os.makedirs('saved_frames', exist_ok=True)
+        #filename = f'saved_frames/frame_cam1_{datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.jpg'
+        #cv2.imwrite(filename, frame)
         if not ret:
             # Можно попробовать переподключить, если нужно
             time.sleep(0.05)
@@ -250,12 +256,15 @@ def update_frames_camera2():
 
         current_time = time.time()
         if current_time - last_time < FRAME_TIME:
-            time.sleep(0.001)
+            time.sleep(0.02)
             continue
 
         last_time = current_time
 
         ret, frame = cap2.read()
+        #os.makedirs('saved_frames', exist_ok=True)
+        #filename = f'saved_frames/frame_cam2_{datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.jpg'
+        #cv2.imwrite(filename, frame)
         if not ret:
             time.sleep(0.05)
             continue
@@ -336,7 +345,7 @@ def video_feed2():
 
 # Стартовая инициализация камер (подкорректируй индексы под свою систему)
 init_camera('/dev/video0', 1) # !!!!!! пробовать разные
-init_camera('/dev/video2', 2)
+init_camera('/dev/video3', 2)
 
 print(f"⏱️  Ограничение FPS: {MAX_FPS} кадров/сек")
 print(f"📡 Сервер координат: {SERVER_URL}")
