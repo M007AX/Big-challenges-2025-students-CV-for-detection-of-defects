@@ -23,6 +23,9 @@ fi
 sudo systemctl reload nginx
 echo "✓ nginx перезагружен"
 
+echo "http://"
+curl ifconfig.me
+echo " -  ваш ip"
 echo ""
 echo "========================================="
 echo "Приложение доступно по адресу:"
